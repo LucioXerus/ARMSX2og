@@ -9,6 +9,7 @@ include(GNUInstallDirs)
 option(ENABLE_TESTS "Enables building the unit tests" ON)
 option(ENABLE_GSRUNNER "Enables building the GSRunner by default.  It can still be built with `make pcsx2-gsrunner` otherwise." OFF)
 option(LTO_PCSX2_CORE "Enable LTO/IPO/LTCG on the subset of pcsx2 that benefits most from it but not anything else")
+option(ANDROID_AGGRESSIVE_OPT "Enable aggressive optimization for Android ARM64 (O3, fast-math, unroll-loops)")
 option(USE_VTUNE "Plug VTUNE to profile GS JIT.")
 option(PACKAGE_MODE "Use this option to ease packaging of PCSX2 (developer/distribution option)")
 
@@ -113,28 +114,40 @@ if("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "x86_64" OR "${CMAKE_HOST_SYSTEM_PR
 	endif()
 elseif("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "arm64" OR "${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "aarch64" OR
        "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
-	message(STATUS "Building for Apple Silicon (ARM64).")
 	list(APPEND PCSX2_DEFS _M_ARM64=1)
 	set(_M_ARM64 TRUE)
-#	add_compile_options("-march=armv8.4-a" "-mcpu=apple-m1")
 
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-	add_definitions("-march=armv8-a+crc")
 
-	# If we're running on Linux, we need to detect the page/cache line size.
-	# It could be a virtual machine with 4K pages, or 16K with Asahi.
-	if(LINUX)
-		detect_page_size()
-		list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=${HOST_PAGE_SIZE})
-		detect_cache_line_size()
-		list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=${HOST_CACHE_LINE_SIZE})
-	endif()
-	
-	# Windows page/cache line size seems to match x68-64 
-	if(WIN32)
-		list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=0x1000)
-		# Value of std::hardware_destructive_interference_size for ARM64 on MSVC toolset 14.40.33807
-		list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=64)
+	if(ANDROID)
+		message(STATUS "Building for Android ARM64 (Snapdragon 870 optimized).")
+		add_compile_options(
+			"-march=armv8.2-a+crypto+crc+dotprod+fp16+lse"
+			"-mtune=cortex-a77"
+		)
+		set(ANDROID_PAGE_SIZE 0x1000)
+		set(ANDROID_CACHE_LINE_SIZE 64)
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=${ANDROID_PAGE_SIZE})
+		list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=${ANDROID_CACHE_LINE_SIZE})
+		if(ANDROID_AGGRESSIVE_OPT)
+			add_compile_options(-O3 -funroll-loops)
+			message(STATUS "Aggressive optimization enabled for Android ARM64")
+		endif()
+	else()
+		message(STATUS "Building for Apple Silicon (ARM64).")
+		add_compile_options("-march=armv8-a+crc")
+
+		if(LINUX)
+			detect_page_size()
+			list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=${HOST_PAGE_SIZE})
+			detect_cache_line_size()
+			list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=${HOST_CACHE_LINE_SIZE})
+		endif()
+
+		if(WIN32)
+			list(APPEND PCSX2_DEFS OVERRIDE_HOST_PAGE_SIZE=0x1000)
+			list(APPEND PCSX2_DEFS OVERRIDE_HOST_CACHE_LINE_SIZE=64)
+		endif()
 	endif()
 else()
 	message(FATAL_ERROR "Unsupported architecture: ${CMAKE_HOST_SYSTEM_PROCESSOR}")

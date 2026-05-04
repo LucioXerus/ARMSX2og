@@ -49,32 +49,27 @@ android {
     namespace 'kr.co.iefriends.pcsx2'
     compileSdk 36
     ndkVersion '29.0.14206865'
+    buildToolsVersion '36.0.0'
 
     flavorDimensions "distribution"
 
     defaultConfig {
-    applicationId "come.nanodata.armsx2"
+        applicationId "come.nanodata.armsx2"
         minSdk 26
-        targetSdk 35
+        targetSdk 36
         versionCode 22
         versionName "1.0.8"
-
-        // APK
-        def baseName = 'ARMSX2'
-        setProperty('archivesBaseName', "${baseName}_${versionCode}_${new Date().format('yyyyMMddHHmm')}${isSwitchBuild ? '-switch' : ''}")
 
         externalNativeBuild {
             cmake {
                 def stlLib = enableRN ? "c++_shared" : "c++_static"
                 arguments "-DANDROID=true", "-DCMAKE_BUILD_TYPE=Release", "-DANDROID_STL=${stlLib}", "-DENABLE_RAINTEGRATION=ON"
-                // Toggle native Discord SDK wiring based on whether the partner SDK AAR is present.
                 arguments "-DUSE_DISCORD_SDK=${isDiscordSdkAvailable ? 'ON' : 'OFF'}"
                 if (isSwitchBuild) {
                     arguments "-DSWITCHBUILD=ON"
                     cFlags "-D__NINTENDO_SWITCH__"
                     cppFlags "-D__NINTENDO_SWITCH__"
                 }
-//                arguments '-DANDROID=true','-DCMAKE_BUILD_TYPE=Debug','-DANDROID_STL=c++_static'
             }
         }
         ndk {
@@ -88,7 +83,6 @@ android {
         buildConfigField "boolean", "ENABLE_RN", enableRN ? "true" : "false"
         buildConfigField "boolean", "DISCORD_INTEGRATION_ENABLED", isDiscordSdkAvailable ? "true" : "false"
         buildConfigField "boolean", "IS_GOOGLE_PLAY_BUILD", "false"
-    resValue "bool", "armsx2_documents_provider_enabled", "true"
     }
 
     productFlavors {
@@ -98,7 +92,6 @@ android {
         googlePlay {
             dimension "distribution"
             buildConfigField "boolean", "IS_GOOGLE_PLAY_BUILD", "true"
-            resValue "bool", "armsx2_documents_provider_enabled", "true"
         }
     }
 
@@ -109,6 +102,12 @@ android {
     }
 
     signingConfigs {
+        debug {
+            storeFile rootProject.file("app/armsx2_debug.jks")
+            storePassword 'armsx2debug'
+            keyAlias 'armsx2debug'
+            keyPassword 'armsx2debug'
+        }
         release {
             storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
             storePassword keystoreProperties['storePassword']
@@ -126,6 +125,27 @@ android {
             minifyEnabled false
             applicationIdSuffix ".debug"
             buildConfigField "boolean", "LOGS_ENABLED", "true"
+        }
+        optimizedDebug {
+            initWith debug
+            applicationIdSuffix ".optimized"
+            debuggable true
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+            buildConfigField "boolean", "LOGS_ENABLED", "true"
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=Release",
+                              "-DANDROID=true",
+                              "-DANDROID_STL=c++_static",
+                              "-DANDROID_AGGRESSIVE_OPT=ON",
+                              "-DENABLE_RAINTEGRATION=ON",
+                              "-DUSE_DISCORD_SDK=${isDiscordSdkAvailable ? 'ON' : 'OFF'}"
+                }
+            }
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
         }
         release {
             ndk {
@@ -152,7 +172,7 @@ android {
             path file('src/main/cpp/CMakeLists.txt')
         }
     }
-    packagingOptions {
+    packaging {
         jniLibs {
             useLegacyPackaging = true
         }
@@ -200,7 +220,6 @@ dependencies {
     implementation 'com.caverock:androidsvg:1.4'
     implementation 'androidx.browser:browser:1.9.0'
     if (enableRN) {
-        // React Native core and Hermes engine (brownfield integration)
         implementation 'com.facebook.react:react-android:0.74.3'
         implementation 'com.facebook.react:hermes-android:0.74.3'
     }

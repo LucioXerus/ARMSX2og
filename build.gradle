@@ -1,12 +1,11 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules (NEEDED for RN only change this if we eventually drop it or something).
 buildscript {
 	repositories {
 		google()
 		mavenCentral()
 	}
 	dependencies {
-		classpath 'com.android.tools.build:gradle:8.13.0'
-		classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24"
+		classpath 'com.android.tools.build:gradle:9.1.1'
+		classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.21"
 		def rnEnabled = gradle.ext.has('enableRN') ? gradle.ext.enableRN : false
 		if (rnEnabled) {
 			def rnPluginDir = file("$rootDir/node_modules/@react-native/gradle-plugin")
@@ -32,8 +31,8 @@ buildscript {
 }
 
 plugins {
-	id 'com.android.application' version '8.13.0' apply false
-	id 'com.android.library' version '8.13.0' apply false
+	id 'com.android.application' version '9.1.1' apply false
+	id 'com.android.library' version '9.1.1' apply false
 }
 
 def enableRN = gradle.ext.has('enableRN') ? gradle.ext.enableRN : false
@@ -41,30 +40,12 @@ def enableRN = gradle.ext.has('enableRN') ? gradle.ext.enableRN : false
 ext {
     enableRN = enableRN
     minSdkVersion = 26
-    targetSdkVersion = 35
+    targetSdkVersion = 36
     compileSdkVersion = 36
     ndkVersion = '29.0.14206865'
-    kotlinVersion = '1.9.24'
+    kotlinVersion = '2.3.21'
 }
-
 
 if (enableRN) {
 	apply plugin: 'com.facebook.react.rootproject'
-}
-
-// Align Kotlin Gradle Plugin across all modules that use legacy buildscript
-subprojects { sub ->
-	buildscript {
-		configurations.classpath?.resolutionStrategy?.eachDependency { details ->
-			if (details.requested.group == 'org.jetbrains.kotlin' && details.requested.name == 'kotlin-gradle-plugin') {
-				details.useVersion(rootProject.ext.kotlinVersion)
-				details.because('Force Kotlin plugin >= 1.5.20 (using 1.9.24) for AGP 8.x')
-			}
-
-			if (details.requested.group == 'com.android.tools.build' && details.requested.name == 'gradle') {
-				details.useVersion('8.2.1')
-				details.because('Align AGP to 8.2.1 to be compatible with Gradle 8.2 wrapper')
-			}
-		}
-	}
 }
